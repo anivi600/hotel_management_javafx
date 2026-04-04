@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.control.PasswordField?>
+<?import javafx.scene.control.TextField?>
+<?import javafx.scene.layout.VBox?>
+
+<VBox xmlns="http://javafx.com/javafx/21" xmlns:fx="http://javafx.com/fxml/1"
+      fx:controller="com.hotel.controllers.LoginController"
+      alignment="CENTER" spacing="20.0"
+      style="-fx-background-color: linear-gradient(to right, #114156 0%, #1a5f7a 100%);"
+      stylesheets="@styles.css">
+    
+    <VBox alignment="CENTER" maxWidth="400.0" spacing="15.0" styleClass="form-panel" style="-fx-background-color: #ffffff; -fx-effect: dropshadow(gaussian, rgba(0, 0, 0, 0.4), 20, 0.2, 0, 10);">
+        <padding>
+            <Insets bottom="40.0" left="40.0" right="40.0" top="40.0" />
+        </padding>
+
+        <Label style="-fx-font-size: 24px; -fx-font-weight: 800; -fx-text-fill: #1a5f7a;" text="🏨 Four Square Login" />
+        
+        <Label style="-fx-text-fill: #9ba6b5; -fx-font-size: 13px;" text="Enter your credentials to continue" />
+
+        <VBox spacing="5.0">
+            <Label styleClass="section-label" text="Username" />
+            <TextField fx:id="tfUsername" promptText="e.g. admin" />
+        </VBox>
+
+        <VBox spacing="5.0">
+            <Label styleClass="section-label" text="Password" />
+            <PasswordField fx:id="pfPassword" promptText="••••••••" />
+        </VBox>
+
+        <Button fx:id="btnLogin" maxWidth="400.0" style="-fx-background-color: linear-gradient(to right, #f5d76e 0%, #eeba30 100%); -fx-text-fill: #114156; -fx-font-weight: bold; -fx-font-size: 15px; -fx-padding: 10px; -fx-background-radius: 10px;" text="Login to System" />
+        
+        <Label style="-fx-text-fill: #9ba6b5; -fx-font-size: 12px;" text="Default roles: admin | reception | cleaner" />
+    </VBox>
+</VBox>
