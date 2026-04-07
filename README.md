@@ -1,1 +1,1 @@
-#run.bat
+run.bat
