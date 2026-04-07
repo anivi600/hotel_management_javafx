@@ -1,8 +1,9 @@
 package com.hotel.controllers;
 
+import com.hotel.dao.HousekeepingDAO;
 import com.hotel.models.HousekeepingTask;
 import com.hotel.models.User;
-import com.hotel.services.DatabaseService;
+import com.hotel.util.UiAlerts;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
@@ -10,16 +11,13 @@ import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
-import java.sql.Connection;
-import java.sql.PreparedStatement;
-import java.sql.ResultSet;
 import java.sql.SQLException;
 
 public class HousekeepingController {
 
-    private final DatabaseService databaseService;
+    private final HousekeepingDAO housekeepingDAO;
     private final User loggedInUser;
-    
+
     private final ObservableList<HousekeepingTask> tasksObsList = FXCollections.observableArrayList();
 
     @FXML private TextField tfRoomNumber;
@@ -28,8 +26,8 @@ public class HousekeepingController {
     @FXML private Button btnAddTask;
     @FXML private Button btnMarkComplete;
 
-    public HousekeepingController(DatabaseService databaseService, User loggedInUser) {
-        this.databaseService = databaseService;
+    public HousekeepingController(HousekeepingDAO housekeepingDAO, User loggedInUser) {
+        this.housekeepingDAO = housekeepingDAO;
         this.loggedInUser = loggedInUser;
     }
 
@@ -40,7 +38,7 @@ public class HousekeepingController {
 
         btnAddTask.setOnAction(e -> handleAddTask());
         btnMarkComplete.setOnAction(e -> handleMarkComplete());
-        
+
         if ("Housekeeping".equals(loggedInUser.getRole())) {
             btnAddTask.setDisable(true);
         }
@@ -67,33 +65,22 @@ public class HousekeepingController {
 
     private void loadTasks() {
         tasksObsList.clear();
-        String sql = "SELECT * FROM housekeeping ORDER BY status DESC"; // Pending first
-        try (Connection conn = databaseService.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql);
-             ResultSet rs = pstmt.executeQuery()) {
-            while (rs.next()) {
-                tasksObsList.add(new HousekeepingTask(
-                        rs.getInt("taskId"),
-                        rs.getInt("roomNumber"),
-                        rs.getString("description"),
-                        rs.getString("status"),
-                        rs.getString("assignedTo")
-                ));
-            }
+        try {
+            tasksObsList.addAll(housekeepingDAO.findAllOrderByStatus());
         } catch (SQLException e) {
-            e.printStackTrace();
+            UiAlerts.showError("Database Error", e);
         }
     }
 
     private void handleAddTask() {
         String rnStr = tfRoomNumber.getText().trim();
         String desc = tfDescription.getText().trim();
-        
+
         if (rnStr.isEmpty() || desc.isEmpty()) {
             showAlert("Required", "Please fill all fields to add a task.");
             return;
         }
-        
+
         int roomNum;
         try {
             roomNum = Integer.parseInt(rnStr);
@@ -102,19 +89,13 @@ public class HousekeepingController {
             return;
         }
 
-        String sql = "INSERT INTO housekeeping (roomNumber, description, status, assignedTo) VALUES (?, ?, ?, ?)";
-        try (Connection conn = databaseService.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, roomNum);
-            pstmt.setString(2, desc);
-            pstmt.setString(3, "Pending");
-            pstmt.setString(4, "cleaner"); // In real app, choose from combo box
-            pstmt.executeUpdate();
+        try {
+            housekeepingDAO.insert(roomNum, desc, "Pending", "cleaner");
             loadTasks();
             tfRoomNumber.clear();
             tfDescription.clear();
         } catch (SQLException e) {
-            e.printStackTrace();
+            UiAlerts.showError("Database Error", e);
         }
     }
 
@@ -127,15 +108,12 @@ public class HousekeepingController {
         if ("Completed".equals(selected.getStatus())) {
             return;
         }
-        
-        String sql = "UPDATE housekeeping SET status = 'Completed' WHERE taskId = ?";
-        try (Connection conn = databaseService.getConnection();
-             PreparedStatement pstmt = conn.prepareStatement(sql)) {
-            pstmt.setInt(1, selected.getTaskId());
-            pstmt.executeUpdate();
+
+        try {
+            housekeepingDAO.updateStatus(selected.getTaskId(), "Completed");
             loadTasks();
         } catch (SQLException e) {
-            e.printStackTrace();
+            UiAlerts.showError("Database Error", e);
         }
     }
 

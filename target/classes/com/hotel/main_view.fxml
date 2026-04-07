@@ -14,19 +14,25 @@
       fx:controller="com.hotel.controllers.MainController"
       stylesheets="@styles.css">
    <children>
-      <HBox fx:id="headerBox" alignment="CENTER_LEFT" spacing="18.0" styleClass="header-bar">
+      <HBox fx:id="headerBox" alignment="CENTER_LEFT" spacing="20.0" styleClass="header-bar">
          <children>
-            <Label fx:id="titleLabel" styleClass="hotel-title" text="🏨  Four Square Hotel Manipal">
-               <HBox.hgrow>
-                  <Priority fx:constant="ALWAYS" />
-               </HBox.hgrow>
-            </Label>
-            <Button fx:id="btnExport" mnemonicParsing="false" styleClass="export-btn" text="📊  Export Data" />
-            <Button fx:id="btnLogout" mnemonicParsing="false" styleClass="export-btn" style="-fx-background-color: #d64545; -fx-text-fill: white;" text="🚪 Logout" />
-            <Label fx:id="dateLabel" styleClass="header-date" text="📅" />
+            <VBox alignment="CENTER_LEFT" spacing="1.0" HBox.hgrow="ALWAYS">
+               <children>
+                  <Label fx:id="titleLabel" styleClass="hotel-title" text="🏨  Four Square Manipal" />
+                  <Label style="-fx-text-fill: #EDDCC8; -fx-font-size: 40px; -fx-font-weight: 800; -fx-letter-spacing: 2px;" text="FOUR SQUARE HOTEL" />
+               </children>
+            </VBox>
+            <HBox alignment="CENTER" spacing="12.0">
+               <children>
+                  <Button fx:id="btnExport" mnemonicParsing="false" styleClass="export-btn" text="📊  Export Data" />
+                  <Button fx:id="btnLogout" mnemonicParsing="false" text="🚪 Logout" />
+                  <Label fx:id="userChip" styleClass="user-chip" text="👤 Admin" />
+                  <Label fx:id="dateLabel" styleClass="header-date" text="📅" />
+               </children>
+            </HBox>
          </children>
          <padding>
-            <Insets bottom="2.0" left="0.0" right="0.0" top="0.0" />
+            <Insets bottom="0.0" left="24.0" right="24.0" top="0.0" />
          </padding>
       </HBox>
       <TabPane fx:id="tabPane" styleClass="main-tabs" tabClosingPolicy="UNAVAILABLE" VBox.vgrow="ALWAYS">

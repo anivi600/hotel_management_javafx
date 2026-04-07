@@ -10,6 +10,7 @@ import javafx.stage.Stage;
 
 /**
  * FXML controller for {@code bill_dialog.fxml} — checkout bill popup.
+ * The bill is already stored in MySQL at checkout; this dialog can save a copy to disk.
  */
 public class BillDialogController {
 
@@ -32,7 +33,7 @@ public class BillDialogController {
         btnSave.setOnAction(e -> {
             fileService.saveBillToFile(bill);
             Alert a = new Alert(Alert.AlertType.INFORMATION);
-            a.setContentText("Bill saved to: " + fileService.getBillsDirectory());
+            a.setContentText("Bill copy saved to: " + fileService.getBillsDirectory());
             a.showAndWait();
         });
         btnClose.setOnAction(e -> {

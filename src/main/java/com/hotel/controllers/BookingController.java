@@ -1,7 +1,10 @@
 package com.hotel.controllers;
 
+import com.hotel.dao.BookingDAO;
+import com.hotel.dao.BillDAO;
 import com.hotel.models.*;
 import com.hotel.services.*;
+import com.hotel.util.UiAlerts;
 import javafx.beans.property.SimpleIntegerProperty;
 import javafx.beans.property.SimpleStringProperty;
 import javafx.collections.FXCollections;
@@ -9,6 +12,7 @@ import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -21,6 +25,8 @@ public class BookingController {
     private final CustomerService customerService;
     private final BillingService billingService;
     private final FileService fileService;
+    private final BookingDAO bookingDAO;
+    private final BillDAO billDAO;
 
     private Consumer<String> statusUpdater = m -> {};
 
@@ -39,11 +45,14 @@ public class BookingController {
     @FXML private Button btnCheckout;
 
     public BookingController(RoomService roomService, CustomerService customerService,
-                             BillingService billingService, FileService fileService) {
+                             BillingService billingService, FileService fileService,
+                             BookingDAO bookingDAO, BillDAO billDAO) {
         this.roomService = roomService;
         this.customerService = customerService;
         this.billingService = billingService;
         this.fileService = fileService;
+        this.bookingDAO = bookingDAO;
+        this.billDAO = billDAO;
     }
 
     public void setStatusUpdater(Consumer<String> statusUpdater) {
@@ -103,7 +112,18 @@ public class BookingController {
         btnBook.setOnAction(e -> handleBook());
         btnCheckout.setOnAction(e -> handleCheckout());
 
+        loadActiveBookingsFromDb();
         populateCombos();
+    }
+
+    private void loadActiveBookingsFromDb() {
+        try {
+            List<Booking> active = bookingDAO.findAllActive();
+            roomService.syncFromActiveBookings(active);
+            bookingObsList.setAll(active);
+        } catch (SQLException e) {
+            UiAlerts.showError("Database Error", e);
+        }
     }
 
     @SuppressWarnings("unchecked")
@@ -176,26 +196,23 @@ public class BookingController {
             }
         }
 
-        Booking booking = roomService.bookRoom(customer, room.getRoomNumber(), nights);
-        if (booking == null) {
-            alert(Alert.AlertType.ERROR, "Error", "Could not book the room. Please try again.");
-            return;
+        try {
+            Booking booking = roomService.bookRoom(customer, room.getRoomNumber(), nights);
+            if (booking == null) {
+                alert(Alert.AlertType.ERROR, "Error", "Could not book the room. Please try again.");
+                return;
+            }
+
+            bookingObsList.add(booking);
+
+            refreshAllSiblings();
+
+            statusUpdater.accept("Room " + room.getRoomNumber() + " booked for "
+                    + customer.getName() + " — "
+                    + java.time.LocalTime.now().toString().substring(0, 5));
+        } catch (SQLException e) {
+            UiAlerts.showError("Database Error", e);
         }
-
-        customer.setAllocatedRoomNumber(room.getRoomNumber());
-
-        bookingObsList.add(booking);
-
-        fileService.updateBookingStatusInRAF(room.getRoomNumber(), false);
-
-        fileService.serializeRooms(roomService.getRoomsList());
-        fileService.serializeCustomers(customerService.getCustomersList());
-
-        refreshAllSiblings();
-
-        statusUpdater.accept("Room " + room.getRoomNumber() + " booked for "
-                + customer.getName() + " — "
-                + java.time.LocalTime.now().toString().substring(0, 5));
     }
 
     private void handleCheckout() {
@@ -222,15 +239,16 @@ public class BookingController {
 
             Bill bill = billingService.generateBill(selected, discountRate);
 
-            roomService.checkoutRoom(selected.getRoom().getRoomNumber());
-            customerService.removeCustomer(selected.getCustomer().getCustomerId());
+            try {
+                billDAO.insert(bill, selected.getBookingId());
+                roomService.checkoutRoom(selected.getRoom().getRoomNumber());
+                customerService.removeCustomer(selected.getCustomer().getCustomerId());
+            } catch (SQLException e) {
+                UiAlerts.showError("Database Error", e);
+                return;
+            }
 
             bookingObsList.remove(selected);
-
-            fileService.updateBookingStatusInRAF(selected.getRoom().getRoomNumber(), true);
-
-            fileService.serializeRooms(roomService.getRoomsList());
-            fileService.serializeCustomers(customerService.getCustomersList());
 
             fileService.saveBillToFile(bill, () -> {
                 if (billingController != null) billingController.loadBillHistory();

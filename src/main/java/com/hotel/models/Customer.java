@@ -10,7 +10,6 @@ import java.io.Serializable;
 public class Customer implements Serializable {
 
     private static final long serialVersionUID = 5L;
-    private static int idCounter = 1;
 
     private int customerId;
     private String name;
@@ -23,20 +22,14 @@ public class Customer implements Serializable {
      * @param contactNumber      10-digit contact number
      * @param allocatedRoomNumber room number assigned to this customer
      */
+    /**
+     * New customer before insert — {@code customerId} is set by the database (see {@link #setCustomerId(int)}).
+     */
     public Customer(String name, String contactNumber, int allocatedRoomNumber) {
-        this.customerId = idCounter++;
+        this.customerId = 0;
         setName(name);
         setContactNumber(contactNumber);
         setAllocatedRoomNumber(allocatedRoomNumber);
-    }
-
-    // ─── Static helper to reset/restore counter ───────────────────────────────
-    public static void setIdCounter(int value) {
-        idCounter = value;
-    }
-
-    public static int getIdCounter() {
-        return idCounter;
     }
 
     // ─── Getters & Setters ────────────────────────────────────────────────────

@@ -369,11 +369,13 @@ public class FileService {
      * @param rooms     current room list
      * @param customers current customer list
      */
-    public void exportDataToText(List<Room> rooms, List<Customer> customers) {
-        String exportFile = DATA_DIR + File.separator + "data_export.txt";
+    public void exportDataToText(List<Room> rooms, List<Customer> customers, List<String> billHistory) {
+        String timestamp = java.time.LocalDateTime.now().toString().replace(":", "-").substring(0, 19);
+        String exportFile = DATA_DIR + File.separator + "snapshot_" + timestamp + ".txt";
         try (FileWriter fw = new FileWriter(exportFile)) {
-            fw.write(buildExportText(rooms, customers));
-            Pair.displayInfo("Data exported to: " + exportFile);
+            fw.write(buildExportText(rooms, customers, billHistory));
+            Pair.displayInfo("Data snapshot exported to: " + exportFile);
+            updateStatus("Exported snapshot_" + timestamp + ".txt");
         } catch (IOException e) {
             System.err.println("[FileService] Export error: " + e.getMessage());
         }
@@ -382,12 +384,12 @@ public class FileService {
     /**
      * Builds the human-readable export text.
      */
-    public static String buildExportText(List<Room> rooms, List<Customer> customers) {
+    public static String buildExportText(List<Room> rooms, List<Customer> customers, List<String> billHistory) {
         StringBuilder sb = new StringBuilder();
         String now = java.time.LocalDateTime.now().toString().substring(0, 19).replace("T", " ");
 
         sb.append("========================================================\n");
-        sb.append("        FOUR SQUARE HOTEL MANIPAL — DATA EXPORT       \n");
+        sb.append("        FOUR SQUARE HOTEL MANIPAL — SYSTEM SNAPSHOT    \n");
         sb.append("        Generated: ").append(now).append("\n");
         sb.append("========================================================\n\n");
 
@@ -423,14 +425,19 @@ public class FileService {
 
         sb.append("\n");
 
-        // ── RAF File info ─────────────────────────────────────────────────────
-        sb.append("FILE INFO\n");
+        // ── Bill History ──────────────────────────────────────────────────────
+        sb.append(String.format("BILLING HISTORY (%d records found)%n", billHistory.size()));
         sb.append("--------------------------------------------------------\n");
-        sb.append("  rooms.dat     — binary Java serialized ArrayList<Room>\n");
-        sb.append("  customers.dat — binary Java serialized ArrayList<Customer>\n");
-        sb.append("  rooms_raf.dat — fixed-length binary records (RandomAccessFile)\n");
-        sb.append("  bills/        — plain-text .txt receipts (human-readable)\n");
-        sb.append("  data_export.txt — THIS FILE (human-readable snapshot)\n");
+        for (String bill : billHistory) {
+             // Just take the headers of bills to keep export concise
+             String[] lines = bill.split("\n");
+             if (lines.length > 5) {
+                 sb.append(lines[0]).append(" | ").append(lines[6]).append("\n"); // Snapshot filename and grand total
+             }
+        }
+
+        sb.append("\n========================================================\n");
+        sb.append("  END OF SNAPSHOT\n");
         sb.append("========================================================\n");
 
         return sb.toString();

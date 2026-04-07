@@ -12,6 +12,7 @@ import javafx.scene.control.Button;
 import javafx.scene.control.Label;
 import javafx.scene.control.Tab;
 import javafx.scene.control.TabPane;
+import com.hotel.tabs.*;
 
 import java.time.LocalDate;
 import java.util.function.Consumer;
@@ -57,6 +58,24 @@ public class MainController {
     void initialize() {
         dateLabel.setText("📅  " + LocalDate.now());
 
+        // Add new functional tabs programmatically
+        DashboardTab dashboardTab = new DashboardTab(roomService, customerService);
+        RoomMonitorTab monitorTab = new RoomMonitorTab(roomService);
+        CheckoutTab checkoutTab = new CheckoutTab(roomService, customerService, mainApp.getBillingService(), fileService, mainApp.getBookingDAO(), mainApp.getBillDAO());
+        GuestManagementTab guestMgmtTab = new GuestManagementTab(customerService);
+        GuestsTab guestsListTab = new GuestsTab(customerService);
+        ReportsTab reportsTab = new ReportsTab(roomService, customerService, mainApp.getBillDAO());
+        SettingsTab settingsTab = new SettingsTab();
+
+        // Insert at the beginning or end as appropriate
+        tabPane.getTabs().add(0, dashboardTab);
+        tabPane.getTabs().add(monitorTab);
+        tabPane.getTabs().add(guestMgmtTab);
+        tabPane.getTabs().add(checkoutTab);
+        tabPane.getTabs().add(guestsListTab);
+        tabPane.getTabs().add(reportsTab);
+        tabPane.getTabs().add(settingsTab);
+
         Consumer<String> su = msg -> Platform.runLater(() -> statusLabel.setText("  " + msg));
         fileService.setStatusCallback(su);
 
@@ -69,15 +88,14 @@ public class MainController {
         bookingTabController.setSiblingControllers(roomTabController, customerTabController, billingTabController);
 
         btnExport.setOnAction(e -> {
-            fileService.exportDataToText(roomService.getRoomsList(), customerService.getCustomersList());
+            fileService.exportDataToText(roomService.getRoomsList(), customerService.getCustomersList(), fileService.loadBillHistory());
             Alert info = new Alert(Alert.AlertType.INFORMATION);
-            info.setTitle("Data Exported");
+            info.setTitle("System Snapshot Exported");
             info.setHeaderText(null);
-            info.setContentText("Readable export saved to:\n"
-                    + fileService.getDataDirectory() + "\\data_export.txt\n\n"
-                    + "Open that file in Notepad or any text editor.");
+            info.setContentText("A new instance of data has been saved as a timestamped snapshot in:\n"
+                    + fileService.getDataDirectory() + "\n\nEach export creates a unique file representing this moment.");
             info.showAndWait();
-            su.accept("Data exported to data_export.txt — "
+            su.accept("System snapshot exported — "
                     + java.time.LocalTime.now().toString().substring(0, 5));
         });
         

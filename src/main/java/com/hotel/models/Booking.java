@@ -11,7 +11,6 @@ import java.time.LocalDate;
 public class Booking implements Serializable {
 
     private static final long serialVersionUID = 6L;
-    private static int bookingCounter = 1;
 
     private int bookingId;
     private Customer customer;
@@ -20,31 +19,27 @@ public class Booking implements Serializable {
     private LocalDate checkInDate;
 
     /**
-     * Creates a Booking with an auto-generated ID and today's check-in date.
-     * @param customer       the guest
-     * @param room           the booked room
-     * @param numberOfNights number of nights (autoboxed to Integer)
+     * Active booking loaded from DB or created after insert (ID from database).
      */
-    public Booking(Customer customer, Room room, int numberOfNights) {
-        this.bookingId = bookingCounter++;
+    public Booking(int bookingId, Customer customer, Room room, int numberOfNights, LocalDate checkInDate) {
+        this.bookingId = bookingId;
         setCustomer(customer);
         setRoom(room);
-        setNumberOfNights(numberOfNights);   // autoboxing int -> Integer happens here
-        this.checkInDate = LocalDate.now();
-    }
-
-    public static void setBookingCounter(int value) {
-        bookingCounter = value;
-    }
-
-    public static int getBookingCounter() {
-        return bookingCounter;
+        setNumberOfNights(numberOfNights);
+        this.checkInDate = checkInDate;
     }
 
     // ─── Getters & Setters ────────────────────────────────────────────────────
 
     public int getBookingId() {
         return bookingId;
+    }
+
+    public void setBookingId(int bookingId) {
+        if (bookingId <= 0) {
+            throw new IllegalArgumentException("Booking ID must be positive.");
+        }
+        this.bookingId = bookingId;
     }
 
     public Customer getCustomer() {

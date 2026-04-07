@@ -1,12 +1,14 @@
 package com.hotel.controllers;
 
-import com.hotel.services.FileService;
+import com.hotel.dao.BillDAO;
+import com.hotel.util.UiAlerts;
 import javafx.fxml.FXML;
 import javafx.geometry.Insets;
 import javafx.scene.control.Label;
 import javafx.scene.control.TextArea;
 import javafx.scene.layout.VBox;
 
+import java.sql.SQLException;
 import java.util.List;
 
 /**
@@ -14,12 +16,12 @@ import java.util.List;
  */
 public class BillingController {
 
-    private final FileService fileService;
+    private final BillDAO billDAO;
 
     @FXML private VBox billListBox;
 
-    public BillingController(FileService fileService) {
-        this.fileService = fileService;
+    public BillingController(BillDAO billDAO) {
+        this.billDAO = billDAO;
     }
 
     @FXML
@@ -28,13 +30,23 @@ public class BillingController {
     }
 
     /**
-     * Reads all bill files from disk and populates the bill list.
+     * Loads all bills from MySQL (and falls back to empty if DB error).
      */
     public void loadBillHistory() {
         if (billListBox == null) return;
         billListBox.getChildren().clear();
 
-        List<String> bills = fileService.loadBillHistory();
+        List<String> bills;
+        try {
+            bills = billDAO.findAllBillTextsNewestFirst();
+        } catch (SQLException e) {
+            UiAlerts.showError("Database Error", e);
+            Label err = new Label("Could not load billing history from the database.");
+            err.getStyleClass().add("billing-empty-hint");
+            billListBox.getChildren().add(err);
+            return;
+        }
+
         if (bills.isEmpty()) {
             Label empty = new Label("No billing records found. Bills appear here after checkout.");
             empty.getStyleClass().add("billing-empty-hint");

@@ -1,109 +1,85 @@
 package com.hotel.services;
 
-import com.hotel.models.*;
+import com.hotel.database.DatabaseConnection;
 
-import java.io.File;
-import java.sql.*;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.sql.Statement;
 
 /**
- * Handles SQLite database connectivity and schema initialization.
+ * Initializes MySQL schema from {@code /com/hotel/schema.sql} and seeds default users when empty.
+ * JDBC access for the app goes through {@link DatabaseConnection} and DAO classes.
  */
 public class DatabaseService {
 
-    private static final String DATA_DIR = System.getProperty("user.home") + File.separator + "HotelData";
-    private static final String DB_URL = "jdbc:sqlite:" + DATA_DIR + File.separator + "hotel.db";
+    private final DatabaseConnection database;
 
-    public DatabaseService() {
-        new File(DATA_DIR).mkdirs();
-        initializeSchema();
-        seedData();
-    }
-
-    public Connection getConnection() throws SQLException {
-        return DriverManager.getConnection(DB_URL);
-    }
-
-    private void initializeSchema() {
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement()) {
-            // Users Table
-            stmt.execute("CREATE TABLE IF NOT EXISTS users (" +
-                    "id INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "username TEXT UNIQUE NOT NULL, " +
-                    "password TEXT NOT NULL, " +
-                    "role TEXT NOT NULL)");
-
-            // Rooms Table
-            stmt.execute("CREATE TABLE IF NOT EXISTS rooms (" +
-                    "roomNumber INTEGER PRIMARY KEY, " +
-                    "roomType TEXT NOT NULL, " +
-                    "basePrice REAL NOT NULL, " +
-                    "available INTEGER NOT NULL)");
-
-            // Customers Table
-            stmt.execute("CREATE TABLE IF NOT EXISTS customers (" +
-                    "customerId INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "name TEXT NOT NULL, " +
-                    "contactNumber TEXT NOT NULL, " +
-                    "allocatedRoomNumber INTEGER)");
-
-            // Bookings Table
-            stmt.execute("CREATE TABLE IF NOT EXISTS bookings (" +
-                    "bookingId INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "customerId INTEGER, " +
-                    "roomNumber INTEGER, " +
-                    "numberOfNights INTEGER, " +
-                    "checkInDate TEXT)");
-
-            // Housekeeping Tasks Table
-            stmt.execute("CREATE TABLE IF NOT EXISTS housekeeping (" +
-                    "taskId INTEGER PRIMARY KEY AUTOINCREMENT, " +
-                    "roomNumber INTEGER, " +
-                    "description TEXT, " +
-                    "status TEXT, " +
-                    "assignedTo TEXT)");
-
-            System.out.println("[DatabaseService] Database schema initialized.");
+    public DatabaseService(DatabaseConnection database) {
+        this.database = database;
+        try {
+            applySchema();
+            seedUsersIfEmpty();
         } catch (SQLException e) {
-            System.err.println("[DatabaseService] Error initializing schema: " + e.getMessage());
+            System.err.println("[DatabaseService] Startup failed: " + e.getMessage());
+            e.printStackTrace();
         }
     }
 
-    private void seedData() {
-        try (Connection connection = getConnection();
-             Statement stmt = connection.createStatement()) {
-            ResultSet rs = stmt.executeQuery("SELECT COUNT(*) FROM users");
-            if (rs.next() && rs.getInt(1) == 0) {
-                // Seed users
-                stmt.execute("INSERT INTO users (username, password, role) VALUES ('admin', 'admin123', 'Admin')");
-                stmt.execute("INSERT INTO users (username, password, role) VALUES ('reception', 'rec123', 'Receptionist')");
-                stmt.execute("INSERT INTO users (username, password, role) VALUES ('cleaner', 'clean123', 'Housekeeping')");
-                System.out.println("[DatabaseService] Seeded users.");
+    public DatabaseConnection getDatabase() {
+        return database;
+    }
+
+    private void applySchema() throws SQLException {
+        try (InputStream in = DatabaseService.class.getResourceAsStream("/com/hotel/schema.sql")) {
+            if (in == null) {
+                throw new SQLException("Resource /com/hotel/schema.sql not found.");
             }
-        } catch (SQLException e) {
-            System.err.println("[DatabaseService] Error seeding DB: " + e.getMessage());
-        }
-    }
-    
-    public User authenticate(String username, String password) {
-        String sql = "SELECT * FROM users WHERE username = ? AND password = ?";
-        try (Connection connection = getConnection();
-             PreparedStatement pstmt = connection.prepareStatement(sql)) {
-            pstmt.setString(1, username);
-            pstmt.setString(2, password);
-            ResultSet rs = pstmt.executeQuery();
-            if (rs.next()) {
-                return new User(
-                        rs.getInt("id"),
-                        rs.getString("username"),
-                        rs.getString("password"),
-                        rs.getString("role")
-                );
+            StringBuilder sb = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    String t = line.trim();
+                    if (t.startsWith("--") || t.isEmpty()) {
+                        continue;
+                    }
+                    sb.append(line).append('\n');
+                }
             }
-        } catch (SQLException e) {
-            System.err.println("[DatabaseService] Auth error: " + e.getMessage());
+            String[] statements = sb.toString().split(";");
+            try (Connection conn = database.getConnection();
+                 Statement st = conn.createStatement()) {
+                for (String raw : statements) {
+                    String sql = raw.trim();
+                    if (sql.isEmpty()) {
+                        continue;
+                    }
+                    st.execute(sql);
+                }
+            }
+        } catch (Exception e) {
+            if (e instanceof SQLException) {
+                throw (SQLException) e;
+            }
+            throw new SQLException("Failed to read or apply schema", e);
         }
-        return null;
+        System.out.println("[DatabaseService] MySQL schema applied (CREATE IF NOT EXISTS).");
     }
 
+    private void seedUsersIfEmpty() throws SQLException {
+        try (Connection conn = database.getConnection();
+             Statement st = conn.createStatement();
+             ResultSet rs = st.executeQuery("SELECT COUNT(*) AS c FROM users")) {
+            if (rs.next() && rs.getInt("c") == 0) {
+                st.executeUpdate("INSERT INTO users (username, password, role) VALUES ('admin', 'admin123', 'Admin')");
+                st.executeUpdate("INSERT INTO users (username, password, role) VALUES ('reception', 'rec123', 'Receptionist')");
+                st.executeUpdate("INSERT INTO users (username, password, role) VALUES ('cleaner', 'clean123', 'Housekeeping')");
+                System.out.println("[DatabaseService] Seeded default users (admin, reception, cleaner).");
+            }
+        }
+    }
 }

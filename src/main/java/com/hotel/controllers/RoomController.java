@@ -3,12 +3,14 @@ package com.hotel.controllers;
 import com.hotel.models.*;
 import com.hotel.services.FileService;
 import com.hotel.services.RoomService;
+import com.hotel.util.UiAlerts;
 import javafx.collections.FXCollections;
 import javafx.collections.ObservableList;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.control.cell.PropertyValueFactory;
 
+import java.sql.SQLException;
 import java.util.List;
 import java.util.function.Consumer;
 
@@ -164,10 +166,10 @@ public class RoomController {
         } catch (IllegalArgumentException ex) {
             showAlert(Alert.AlertType.ERROR, "Duplicate Room", ex.getMessage());
             return;
+        } catch (SQLException ex) {
+            UiAlerts.showError("Database Error", ex);
+            return;
         }
-
-        fileService.saveToRandomAccessFile(newRoom);
-        fileService.serializeRooms(roomService.getRoomsList());
 
         refreshTable();
         clearForm();
@@ -196,8 +198,12 @@ public class RoomController {
         confirm.setHeaderText(null);
         confirm.showAndWait().ifPresent(btn -> {
             if (btn == ButtonType.YES) {
-                roomService.removeRoom(selected.getRoomNumber());
-                fileService.serializeRooms(roomService.getRoomsList());
+                try {
+                    roomService.removeRoom(selected.getRoomNumber());
+                } catch (SQLException e) {
+                    UiAlerts.showError("Database Error", e);
+                    return;
+                }
                 refreshTable();
                 if (bookingController != null) bookingController.populateCombos();
                 statusUpdater.accept("Room " + selected.getRoomNumber()
